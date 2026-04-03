@@ -2,14 +2,16 @@ import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import {
-  createSport,
+  createSportWithAudit,
+  loadAuditLog,
   defaultBanner,
   defaultSports,
   loadBanner,
   loadSports,
-  saveAllSports,
-  saveBanner,
-  saveSport,
+  saveAllSportsWithAudit,
+  saveBannerWithAudit,
+  saveSportWithAudit,
+  type AuditLogEntry,
   type GlobalBanner,
   type SportCategory,
   type SportProgram,
@@ -50,6 +52,7 @@ function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [authReady, setAuthReady] = useState(!isSupabaseConfigured)
   const [dataReady, setDataReady] = useState(false)
+  const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([])
   const [adminEmail, setAdminEmail] = useState('imsports@purdue.edu')
   const [adminPassword, setAdminPassword] = useState('')
   const [loginError, setLoginError] = useState('')
@@ -67,15 +70,18 @@ function App() {
   useEffect(() => {
     let isActive = true
 
-    void Promise.all([loadSports(), loadBanner()]).then(([loadedSports, loadedBanner]) => {
-      if (!isActive) {
-        return
-      }
+    void Promise.all([loadSports(), loadBanner(), loadAuditLog()]).then(
+      ([loadedSports, loadedBanner, loadedAuditLog]) => {
+        if (!isActive) {
+          return
+        }
 
-      setSports(loadedSports)
-      setBanner(loadedBanner)
-      setDataReady(true)
-    })
+        setSports(loadedSports)
+        setBanner(loadedBanner)
+        setAuditLog(loadedAuditLog)
+        setDataReady(true)
+      },
+    )
 
     return () => {
       isActive = false
@@ -129,6 +135,7 @@ function App() {
   }, [bannerSaveFeedback])
 
   const isAdminAuthenticated = Boolean(session)
+  const actorEmail = session?.user.email ?? 'IM Supervisor'
 
   const activeBanner = useMemo(() => {
     return banner.enabled ? banner : null
@@ -205,7 +212,14 @@ function App() {
     )
 
     try {
-      await saveSport(updated)
+      await saveSportWithAudit(
+        updated,
+        actorEmail,
+        'updated',
+        `Updated ${updated.name} to ${updated.status}.`,
+      )
+      const nextAuditLog = await loadAuditLog()
+      setAuditLog(nextAuditLog)
     } catch {
       setSaveError('A shared save failed. Refresh and try again.')
     }
@@ -244,9 +258,19 @@ function App() {
     setBulkFeedback(feedback)
     setSaveError('')
 
-    void saveAllSports(nextSports).catch(() => {
-      setSaveError('A shared save failed. Refresh and try again.')
-    })
+    void saveAllSportsWithAudit(
+      nextSports,
+      actorEmail,
+      'bulk-update',
+      feedback,
+    )
+      .then(async () => {
+        const nextAuditLog = await loadAuditLog()
+        setAuditLog(nextAuditLog)
+      })
+      .catch(() => {
+        setSaveError('A shared save failed. Refresh and try again.')
+      })
   }
 
   async function handleBannerSave(field: keyof GlobalBanner, value: string | boolean) {
@@ -255,8 +279,15 @@ function App() {
     setSaveError('')
 
     try {
-      await saveBanner(nextBanner)
+      await saveBannerWithAudit(
+        nextBanner,
+        actorEmail,
+        'banner-updated',
+        `Updated banner ${field}.`,
+      )
       setBannerSaveFeedback('Banner saved.')
+      const nextAuditLog = await loadAuditLog()
+      setAuditLog(nextAuditLog)
     } catch {
       setSaveError('Banner save failed. Refresh and try again.')
     }
@@ -281,13 +312,16 @@ function App() {
       facilityImpact: newSport.facilityImpact.trim() || 'No facility impacts.',
       archived: false,
       displayOrder: sports.length + 1,
+      updatedBy: actorEmail,
     }
 
     setSports((currentSports) => [sport, ...currentSports])
     setSaveError('')
 
     try {
-      await createSport(sport)
+      await createSportWithAudit(sport, actorEmail)
+      const nextAuditLog = await loadAuditLog()
+      setAuditLog(nextAuditLog)
       setNewSport({
         name: '',
         category: 'Outdoor',
@@ -729,10 +763,51 @@ function App() {
                         </div>
 
                         <p className="microcopy">
-                          Updated: {sport.updatedAt} • {statusMeta[sport.status].adminLabel}
+                          Updated: {sport.updatedAt} by {sport.updatedBy} •{' '}
+                          {statusMeta[sport.status].adminLabel}
                         </p>
                       </article>
                     ))}
+                </div>
+              </section>
+
+              <section className="panel">
+                <div className="section-heading">
+                  <div>
+                    <p className="eyebrow">Recent Activity</p>
+                    <h3>Audit trail for recent changes</h3>
+                  </div>
+                </div>
+
+                <div className="admin-list">
+                  {auditLog.length > 0 ? (
+                    auditLog.map((entry) => (
+                      <article className="admin-card" key={entry.id}>
+                        <div className="admin-card-heading">
+                          <div>
+                            <p className="facility-area">
+                              {entry.entityType === 'banner' ? 'Global Banner' : 'Sport Update'}
+                            </p>
+                            <h4>{entry.summary}</h4>
+                          </div>
+                          <span className="status-pill status-open">{entry.action}</span>
+                        </div>
+
+                        <p className="facility-note">
+                          {entry.actorEmail} made this change.
+                        </p>
+
+                        <p className="microcopy">Logged: {entry.createdAt}</p>
+                      </article>
+                    ))
+                  ) : (
+                    <article className="admin-card">
+                      <h4>No audit entries yet</h4>
+                      <p className="facility-note">
+                        Recent admin changes will appear here once updates are made.
+                      </p>
+                    </article>
+                  )}
                 </div>
               </section>
 

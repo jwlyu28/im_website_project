@@ -39,6 +39,8 @@ Then add:
 4. In Supabase Auth, create the shared supervisor account you want staff to use.
 5. Copy the project URL and anon key into `.env.local`.
 
+If you already set up Supabase earlier, rerun the updated schema now so the new `audit_log` table and `updated_by` fields are created.
+
 This keeps the shared admin password inside Supabase Auth instead of exposing it in frontend environment variables.
 
 ## Deployment path
