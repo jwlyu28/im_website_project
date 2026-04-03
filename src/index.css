@@ -24,6 +24,8 @@
   --delay-text: #695116;
   --closed-bg: #ffd8d2;
   --closed-text: #8d1d16;
+  --banner-red: #a32424;
+  --banner-red-bright: #d74b4b;
 }
 
 * {
@@ -191,6 +193,34 @@ h4 {
   gap: 24px;
 }
 
+.banner-panel {
+  padding: 22px 28px;
+  border-radius: 26px;
+  background: linear-gradient(135deg, var(--banner-red) 0%, var(--banner-red-bright) 100%);
+  color: white;
+  box-shadow: var(--shadow);
+}
+
+.banner-inline {
+  margin-bottom: 18px;
+}
+
+.banner-eyebrow {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.banner-panel h3,
+.banner-panel p {
+  color: white;
+  margin: 0;
+}
+
+.banner-panel p:last-child {
+  margin-top: 8px;
+  max-width: 54rem;
+  line-height: 1.6;
+}
+
 .hero-card,
 .panel {
   position: relative;
@@ -208,6 +238,19 @@ h4 {
   background:
     radial-gradient(circle at top right, rgba(206, 184, 136, 0.38), transparent 28%),
     linear-gradient(135deg, rgba(255, 253, 248, 0.96), rgba(243, 238, 228, 0.92));
+}
+
+.admin-hero-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: start;
+}
+
+.admin-toolbar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .hero-card h2 {
@@ -262,6 +305,90 @@ h4 {
 
 .panel {
   padding: 28px;
+}
+
+.admin-dashboard-grid {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 18px;
+}
+
+.dashboard-card {
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.dashboard-banner-card {
+  align-content: start;
+}
+
+.action-feedback {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(223, 246, 230, 0.95);
+  color: var(--open-text);
+  font-weight: 700;
+}
+
+.bulk-action-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.bulk-action-card {
+  display: grid;
+  gap: 6px;
+  padding: 18px;
+  border-radius: 18px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(109, 92, 52, 0.12);
+}
+
+.bulk-action-card:hover {
+  transform: translateY(-1px);
+}
+
+.bulk-action-card strong,
+.bulk-action-card span {
+  color: var(--ink);
+}
+
+.bulk-action-card span {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.bulk-alert {
+  background: linear-gradient(135deg, rgba(246, 232, 183, 0.8), rgba(255, 255, 255, 0.9));
+}
+
+.bulk-cancel {
+  background: linear-gradient(135deg, rgba(255, 216, 210, 0.95), rgba(255, 255, 255, 0.92));
+}
+
+.bulk-active {
+  background: linear-gradient(135deg, rgba(223, 246, 230, 0.9), rgba(255, 255, 255, 0.92));
+}
+
+.banner-preview-card {
+  padding: 18px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, var(--banner-red) 0%, var(--banner-red-bright) 100%);
+}
+
+.banner-preview-card h4,
+.banner-preview-card p {
+  color: white;
+  margin: 0;
+}
+
+.banner-preview-card p:last-child {
+  margin-top: 8px;
+  line-height: 1.6;
 }
 
 .section-heading {
@@ -520,7 +647,35 @@ button:disabled {
   transform: translateY(-1px);
 }
 
+.admin-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.modal-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(28, 25, 20, 0.36);
+  backdrop-filter: blur(8px);
+}
+
+.modal-card {
+  width: min(760px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  padding: 28px;
+  border-radius: 28px;
+  background: rgba(255, 251, 245, 0.98);
+  box-shadow: var(--shadow);
+}
+
 @media (max-width: 1080px) {
+  .admin-dashboard-grid,
   .facility-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -532,6 +687,7 @@ button:disabled {
   }
 
   .topbar,
+  .admin-hero-top,
   .section-heading,
   .facility-card-top,
   .admin-card-heading {
@@ -540,6 +696,7 @@ button:disabled {
   }
 
   .hero-metrics,
+  .admin-dashboard-grid,
   .filter-grid,
   .add-facility-form,
   .facility-grid,

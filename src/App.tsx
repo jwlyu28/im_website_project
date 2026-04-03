@@ -2,199 +2,106 @@ import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import {
-  allowedAdminEmails,
-  isAllowedAdmin,
-  isSupabaseConfigured,
-  supabase,
-} from './lib/auth'
-
-type FacilityStatus = 'open' | 'delayed' | 'closed'
-type FacilityType = 'Indoor' | 'Outdoor'
-
-type Facility = {
-  id: string
-  name: string
-  area: string
-  type: FacilityType
-  sports: string[]
-  status: FacilityStatus
-  note: string
-  updatedAt: string
-  nextCheckpoint: string
-}
-
-const STORAGE_KEYS = {
-  facilities: 'purdue-im-facilities',
-}
-
-const defaultFacilities: Facility[] = [
-  {
-    id: 'gold-1',
-    name: 'Gold Field 1',
-    area: 'Gold Complex',
-    type: 'Outdoor',
-    sports: ['Flag Football', 'Soccer'],
-    status: 'open',
-    note: 'Normal operations. Field lights active for evening league play.',
-    updatedAt: 'Today, 6:45 PM',
-    nextCheckpoint: 'Next weather check at 8:00 PM',
-  },
-  {
-    id: 'gold-4',
-    name: 'Gold Field 4',
-    area: 'Gold Complex',
-    type: 'Outdoor',
-    sports: ['Flag Football'],
-    status: 'closed',
-    note: 'Closed because of standing water after heavy rain.',
-    updatedAt: 'Today, 6:18 PM',
-    nextCheckpoint: 'Reassess at 8:30 PM',
-  },
-  {
-    id: 'trec-2',
-    name: 'TREC Field 2',
-    area: 'TREC',
-    type: 'Indoor',
-    sports: ['Soccer', 'Softball Training'],
-    status: 'delayed',
-    note: 'Maintenance crew is resetting divider curtains. Play should resume shortly.',
-    updatedAt: 'Today, 6:30 PM',
-    nextCheckpoint: 'Expected back at 8:15 PM',
-  },
-  {
-    id: 'corec-1',
-    name: 'CoRec Court 1',
-    area: 'CoRec',
-    type: 'Indoor',
-    sports: ['Basketball', 'Volleyball'],
-    status: 'open',
-    note: 'Open for league play and warmups.',
-    updatedAt: 'Today, 5:52 PM',
-    nextCheckpoint: 'Building closes at 11:00 PM',
-  },
-  {
-    id: 'corec-3',
-    name: 'CoRec Court 3',
-    area: 'CoRec',
-    type: 'Indoor',
-    sports: ['Basketball'],
-    status: 'delayed',
-    note: 'Delayed while a damaged rim is replaced.',
-    updatedAt: 'Today, 6:05 PM',
-    nextCheckpoint: 'Supervisor review at 7:30 PM',
-  },
-  {
-    id: 'climbing-wall',
-    name: 'Climbing Wall',
-    area: 'CoRec',
-    type: 'Indoor',
-    sports: ['Climbing'],
-    status: 'open',
-    note: 'Belay checks completed. Open for normal evening hours.',
-    updatedAt: 'Today, 4:40 PM',
-    nextCheckpoint: 'Staff handoff at 8:00 PM',
-  },
-]
+  createSport,
+  defaultBanner,
+  defaultSports,
+  loadBanner,
+  loadSports,
+  saveAllSports,
+  saveBanner,
+  saveSport,
+  type GlobalBanner,
+  type SportCategory,
+  type SportProgram,
+  type SportStatus,
+} from './lib/data'
+import { isSupabaseConfigured, supabase } from './lib/supabase'
 
 const statusMeta: Record<
-  FacilityStatus,
-  { label: string; tone: string; summary: string }
+  SportStatus,
+  { label: string; tone: string; summary: string; adminLabel: string }
 > = {
-  open: {
-    label: 'Open',
+  active: {
+    label: 'Active',
     tone: 'status-open',
-    summary: 'Available for play',
+    summary: 'Program is running as scheduled',
+    adminLabel: 'Running normally',
   },
-  delayed: {
-    label: 'Delayed',
+  alert: {
+    label: 'Alert',
     tone: 'status-delayed',
-    summary: 'Check updates soon',
+    summary: 'Conditions changed, check details',
+    adminLabel: 'Needs attention',
   },
-  closed: {
-    label: 'Closed',
+  cancelled: {
+    label: 'Cancelled',
     tone: 'status-closed',
-    summary: 'Unavailable right now',
+    summary: 'Program block is not running',
+    adminLabel: 'Fully stopped',
   },
-}
-
-function readFacilities() {
-  const saved = window.localStorage.getItem(STORAGE_KEYS.facilities)
-
-  if (!saved) {
-    return defaultFacilities
-  }
-
-  try {
-    return JSON.parse(saved) as Facility[]
-  } catch {
-    return defaultFacilities
-  }
 }
 
 function App() {
   const [mode, setMode] = useState<'public' | 'admin'>('public')
-  const [activityFilter, setActivityFilter] = useState('All')
-  const [typeFilter, setTypeFilter] = useState<'All' | FacilityType>('All')
-  const [statusFilter, setStatusFilter] = useState<'All' | FacilityStatus>('All')
-  const [facilities, setFacilities] = useState<Facility[]>(() => readFacilities())
-  const [adminEmail, setAdminEmail] = useState('')
-  const [adminPassword, setAdminPassword] = useState('')
-  const [authSession, setAuthSession] = useState<Session | null>(null)
+  const [categoryFilter, setCategoryFilter] = useState<'All' | SportCategory>('All')
+  const [statusFilter, setStatusFilter] = useState<'All' | SportStatus>('All')
+  const [sports, setSports] = useState<SportProgram[]>(defaultSports)
+  const [banner, setBanner] = useState<GlobalBanner>(defaultBanner)
+  const [session, setSession] = useState<Session | null>(null)
   const [authReady, setAuthReady] = useState(!isSupabaseConfigured)
-  const [authPending, setAuthPending] = useState(false)
+  const [dataReady, setDataReady] = useState(false)
+  const [adminEmail, setAdminEmail] = useState('imsports@purdue.edu')
+  const [adminPassword, setAdminPassword] = useState('')
   const [loginError, setLoginError] = useState('')
-  const [newFacility, setNewFacility] = useState({
+  const [saveError, setSaveError] = useState('')
+  const [isAddSportOpen, setIsAddSportOpen] = useState(false)
+  const [bulkFeedback, setBulkFeedback] = useState('')
+  const [bannerSaveFeedback, setBannerSaveFeedback] = useState('')
+  const [newSport, setNewSport] = useState({
     name: '',
-    area: '',
-    type: 'Outdoor' as FacilityType,
-    sports: '',
+    category: 'Outdoor' as SportCategory,
+    facilityImpact: '',
     note: '',
   })
 
   useEffect(() => {
-    if (facilities.length === 0) {
-      return
-    }
+    let isActive = true
 
-    window.localStorage.setItem(
-      STORAGE_KEYS.facilities,
-      JSON.stringify(facilities),
-    )
-  }, [facilities])
+    void Promise.all([loadSports(), loadBanner()]).then(([loadedSports, loadedBanner]) => {
+      if (!isActive) {
+        return
+      }
+
+      setSports(loadedSports)
+      setBanner(loadedBanner)
+      setDataReady(true)
+    })
+
+    return () => {
+      isActive = false
+    }
+  }, [])
 
   useEffect(() => {
     if (!supabase) {
       return
     }
 
-    const client = supabase
     let isActive = true
 
-    const syncSession = async (session: Session | null) => {
+    void supabase.auth.getSession().then(({ data }) => {
       if (!isActive) {
         return
       }
-
-      if (session && !isAllowedAdmin(session.user.email)) {
-        setLoginError(
-          'Your account signed in successfully, but it is not currently allowed to access the admin dashboard.',
-        )
-        await client.auth.signOut()
-        return
-      }
-
-      setAuthSession(session)
+      setSession(data.session)
       setAuthReady(true)
-    }
-
-    void client.auth.getSession().then(({ data }) => {
-      void syncSession(data.session)
     })
 
     const {
       data: { subscription },
-    } = client.auth.onAuthStateChange((_event, session) => {
-      void syncSession(session)
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession)
+      setAuthReady(true)
     })
 
     return () => {
@@ -203,84 +110,82 @@ function App() {
     }
   }, [])
 
-  const isAdminAuthenticated = Boolean(
-    authSession && isAllowedAdmin(authSession.user.email),
+  useEffect(() => {
+    if (!bulkFeedback) {
+      return
+    }
+
+    const timer = window.setTimeout(() => setBulkFeedback(''), 2500)
+    return () => window.clearTimeout(timer)
+  }, [bulkFeedback])
+
+  useEffect(() => {
+    if (!bannerSaveFeedback) {
+      return
+    }
+
+    const timer = window.setTimeout(() => setBannerSaveFeedback(''), 2000)
+    return () => window.clearTimeout(timer)
+  }, [bannerSaveFeedback])
+
+  const isAdminAuthenticated = Boolean(session)
+
+  const activeBanner = useMemo(() => {
+    return banner.enabled ? banner : null
+  }, [banner])
+
+  const liveSports = useMemo(() => sports.filter((sport) => !sport.archived), [sports])
+  const archivedSports = useMemo(
+    () => sports.filter((sport) => sport.archived),
+    [sports],
   )
 
-  const activityOptions = useMemo(() => {
-    const values = new Set<string>()
-    facilities.forEach((facility) => {
-      facility.sports.forEach((sport) => values.add(sport))
-    })
-    return ['All', ...values]
-  }, [facilities])
-
-  const filteredFacilities = useMemo(() => {
-    return facilities.filter((facility) => {
-      const matchesActivity =
-        activityFilter === 'All' || facility.sports.includes(activityFilter)
-      const matchesType = typeFilter === 'All' || facility.type === typeFilter
-      const matchesStatus =
-        statusFilter === 'All' || facility.status === statusFilter
-
-      return matchesActivity && matchesType && matchesStatus
-    })
-  }, [activityFilter, facilities, statusFilter, typeFilter])
+  const filteredSports = useMemo(() => {
+    return [...liveSports]
+      .sort((left, right) => left.displayOrder - right.displayOrder)
+      .filter((sport) => {
+        const matchesCategory =
+          categoryFilter === 'All' || sport.category === categoryFilter
+        const matchesStatus = statusFilter === 'All' || sport.status === statusFilter
+        return matchesCategory && matchesStatus
+      })
+  }, [categoryFilter, liveSports, statusFilter])
 
   const summary = useMemo(() => {
-    const open = facilities.filter((facility) => facility.status === 'open').length
-    const delayed = facilities.filter((facility) => facility.status === 'delayed').length
-    const closed = facilities.filter((facility) => facility.status === 'closed').length
+    const active = liveSports.filter((sport) => sport.status === 'active').length
+    const alert = liveSports.filter((sport) => sport.status === 'alert').length
+    const cancelled = liveSports.filter((sport) => sport.status === 'cancelled').length
 
     return {
-      total: facilities.length,
-      open,
-      delayed,
-      closed,
-      restricted: delayed + closed,
+      total: liveSports.length,
+      active,
+      alert,
+      cancelled,
     }
-  }, [facilities])
+  }, [liveSports])
 
-  const alertFacilities = useMemo(() => {
-    return facilities.filter((facility) => facility.status !== 'open')
-  }, [facilities])
-
-  const recentUpdate = useMemo(() => {
-    return facilities[0]?.updatedAt ?? 'No updates yet'
-  }, [facilities])
+  const recentUpdate = useMemo(
+    () => liveSports[0]?.updatedAt ?? 'No updates yet',
+    [liveSports],
+  )
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    setLoginError('')
 
     if (!supabase) {
       setLoginError('Supabase is not configured yet for this workspace.')
       return
     }
 
-    setAuthPending(true)
-    setLoginError('')
-
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
       email: adminEmail.trim(),
       password: adminPassword,
     })
 
     if (error) {
       setLoginError(error.message)
-      setAuthPending(false)
-      return
     }
-
-    if (!isAllowedAdmin(data.user?.email)) {
-      await supabase.auth.signOut()
-      setLoginError(
-        'You authenticated successfully, but this email is not on the admin allowlist.',
-      )
-      setAuthPending(false)
-      return
-    }
-
-    setAuthPending(false)
   }
 
   async function handleLogout() {
@@ -290,55 +195,109 @@ function App() {
 
     await supabase.auth.signOut()
     setMode('public')
+    setAdminPassword('')
   }
 
-  function updateFacility(
-    facilityId: string,
-    updates: Partial<Pick<Facility, 'status' | 'note' | 'nextCheckpoint'>>,
-  ) {
-    setFacilities((currentFacilities) =>
-      currentFacilities.map((facility) =>
-        facility.id === facilityId
-          ? { ...facility, ...updates, updatedAt: 'Just now' }
-          : facility,
-      ),
+  async function persistSport(updated: SportProgram) {
+    setSaveError('')
+    setSports((currentSports) =>
+      currentSports.map((sport) => (sport.id === updated.id ? updated : sport)),
     )
+
+    try {
+      await saveSport(updated)
+    } catch {
+      setSaveError('A shared save failed. Refresh and try again.')
+    }
   }
 
-  function addFacility(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
-    if (!newFacility.name.trim() || !newFacility.area.trim()) {
+  function updateSport(sportId: string, updates: Partial<SportProgram>) {
+    const current = sports.find((sport) => sport.id === sportId)
+    if (!current) {
       return
     }
 
-    const sports = newFacility.sports
-      .split(',')
-      .map((sport) => sport.trim())
-      .filter(Boolean)
-
-    const facility: Facility = {
-      id: `${newFacility.name.toLowerCase().replaceAll(' ', '-')}-${Date.now()}`,
-      name: newFacility.name.trim(),
-      area: newFacility.area.trim(),
-      type: newFacility.type,
-      sports: sports.length > 0 ? sports : ['General Use'],
-      status: 'open',
-      note:
-        newFacility.note.trim() ||
-        'New facility added. Status is ready for supervisor review.',
+    void persistSport({
+      ...current,
+      ...updates,
       updatedAt: 'Just now',
-      nextCheckpoint: 'Set next checkpoint',
+    })
+  }
+
+  function updateAllLiveSports(
+    status: SportStatus,
+    note: string,
+    feedback: string,
+  ) {
+    const nextSports = sports.map((sport) =>
+      sport.archived
+        ? sport
+        : {
+            ...sport,
+            status,
+            note: note || sport.note,
+            updatedAt: 'Just now',
+          },
+    )
+
+    setSports(nextSports)
+    setBulkFeedback(feedback)
+    setSaveError('')
+
+    void saveAllSports(nextSports).catch(() => {
+      setSaveError('A shared save failed. Refresh and try again.')
+    })
+  }
+
+  async function handleBannerSave(field: keyof GlobalBanner, value: string | boolean) {
+    const nextBanner = { ...banner, [field]: value }
+    setBanner(nextBanner)
+    setSaveError('')
+
+    try {
+      await saveBanner(nextBanner)
+      setBannerSaveFeedback('Banner saved.')
+    } catch {
+      setSaveError('Banner save failed. Refresh and try again.')
+    }
+  }
+
+  async function addSport(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!newSport.name.trim()) {
+      return
     }
 
-    setFacilities((currentFacilities) => [facility, ...currentFacilities])
-    setNewFacility({
-      name: '',
-      area: '',
-      type: 'Outdoor',
-      sports: '',
-      note: '',
-    })
+    const sport: SportProgram = {
+      id: crypto.randomUUID(),
+      name: newSport.name.trim(),
+      category: newSport.category,
+      status: 'active',
+      note:
+        newSport.note.trim() ||
+        'Program is active and ready for the next supervisor update.',
+      updatedAt: 'Just now',
+      facilityImpact: newSport.facilityImpact.trim() || 'No facility impacts.',
+      archived: false,
+      displayOrder: sports.length + 1,
+    }
+
+    setSports((currentSports) => [sport, ...currentSports])
+    setSaveError('')
+
+    try {
+      await createSport(sport)
+      setNewSport({
+        name: '',
+        category: 'Outdoor',
+        facilityImpact: '',
+        note: '',
+      })
+      setIsAddSportOpen(false)
+    } catch {
+      setSaveError('Sport creation failed. Refresh and try again.')
+    }
   }
 
   return (
@@ -349,7 +308,7 @@ function App() {
       <header className="topbar">
         <div>
           <p className="eyebrow">Purdue RecWell Intramurals</p>
-          <h1 className="brand">Facility Tracker MVP</h1>
+          <h1 className="brand">Sports Status MVP</h1>
         </div>
 
         <div className="topbar-actions">
@@ -380,126 +339,98 @@ function App() {
         </div>
       </header>
 
-      {mode === 'public' ? (
+      {!dataReady ? (
         <main className="page-grid">
-          <section className="hero-card">
-            <p className="eyebrow">Live Public Board</p>
-            <h2>
-              Clear, fast updates for every intramural facility when weather or
-              operations shift.
-            </h2>
-            <p className="hero-copy">
-              This first version focuses on the high-friction problem you
-              mentioned: letting participants and staff quickly see whether a
-              field or court is open, delayed, or closed.
-            </p>
-
-            <div className="hero-metrics">
-              <article>
-                <span>{summary.total}</span>
-                <p>Total facilities</p>
-              </article>
-              <article>
-                <span>{summary.open}</span>
-                <p>Open now</p>
-              </article>
-              <article>
-                <span>{summary.restricted}</span>
-                <p>Need attention</p>
-              </article>
-            </div>
+          <section className="panel auth-panel">
+            <p className="eyebrow">Loading</p>
+            <h2>Preparing shared sports data...</h2>
           </section>
-
+        </main>
+      ) : mode === 'public' ? (
+        <main className="page-grid">
           <section className="panel filters-panel">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">Filter Facilities</p>
-                <h3>Find what players need quickly</h3>
+                <p className="eyebrow">Filter Sports</p>
+                <h3>Find the right program quickly</h3>
               </div>
               <p className="microcopy">Last update: {recentUpdate}</p>
             </div>
 
-            <div className="filter-group">
-              <span className="filter-label">Activity</span>
-              <div className="chip-row">
-                {activityOptions.map((activity) => (
-                  <button
-                    key={activity}
-                    className={activityFilter === activity ? 'chip active' : 'chip'}
-                    onClick={() => setActivityFilter(activity)}
-                  >
-                    {activity}
-                  </button>
-                ))}
-              </div>
+            <div className="chip-row">
+              {(['All', 'Outdoor', 'Indoor', 'Special Event'] as const).map((category) => (
+                <button
+                  key={category}
+                  className={categoryFilter === category ? 'chip active' : 'chip'}
+                  onClick={() => setCategoryFilter(category)}
+                >
+                  {category}
+                </button>
+              ))}
             </div>
 
             <div className="filter-grid">
-              <label>
-                <span className="filter-label">Facility type</span>
-                <select
-                  value={typeFilter}
-                  onChange={(event) =>
-                    setTypeFilter(event.target.value as 'All' | FacilityType)
-                  }
-                >
-                  <option value="All">All facilities</option>
-                  <option value="Indoor">Indoor</option>
-                  <option value="Outdoor">Outdoor</option>
-                </select>
-              </label>
-
               <label>
                 <span className="filter-label">Status</span>
                 <select
                   value={statusFilter}
                   onChange={(event) =>
-                    setStatusFilter(event.target.value as 'All' | FacilityStatus)
+                    setStatusFilter(event.target.value as 'All' | SportStatus)
                   }
                 >
                   <option value="All">All statuses</option>
-                  <option value="open">Open</option>
-                  <option value="delayed">Delayed</option>
-                  <option value="closed">Closed</option>
+                  <option value="active">Active</option>
+                  <option value="alert">Alert</option>
+                  <option value="cancelled">Cancelled</option>
                 </select>
               </label>
+
+              <div className="setup-box">
+                <p>Priority framing:</p>
+                <p>Sport status first, details second.</p>
+              </div>
             </div>
           </section>
 
           <section className="panel facilities-panel">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">Facility Statuses</p>
-                <h3>Built for quick patron scanning</h3>
+                <p className="eyebrow">Sport Statuses</p>
+                <h3>Built for quick participant scanning</h3>
               </div>
               <div className="legend">
-                <span className="legend-pill open">Open</span>
-                <span className="legend-pill delayed">Delayed</span>
-                <span className="legend-pill closed">Closed</span>
+                <span className="legend-pill open">Active</span>
+                <span className="legend-pill delayed">Alert</span>
+                <span className="legend-pill closed">Cancelled</span>
               </div>
             </div>
 
+            {activeBanner ? (
+              <section className="banner-panel banner-inline">
+                <p className="eyebrow banner-eyebrow">Global Notice</p>
+                <h3>{activeBanner.title}</h3>
+                <p>{activeBanner.message}</p>
+              </section>
+            ) : null}
+
             <div className="facility-grid">
-              {filteredFacilities.map((facility) => (
-                <article className="facility-card" key={facility.id}>
+              {filteredSports.map((sport) => (
+                <article className="facility-card" key={sport.id}>
                   <div className="facility-card-top">
                     <div>
-                      <p className="facility-area">
-                        {facility.area} • {facility.type}
-                      </p>
-                      <h4>{facility.name}</h4>
+                      <p className="facility-area">{sport.category}</p>
+                      <h4>{sport.name}</h4>
                     </div>
-                    <span className={`status-pill ${statusMeta[facility.status].tone}`}>
-                      {statusMeta[facility.status].label}
+                    <span className={`status-pill ${statusMeta[sport.status].tone}`}>
+                      {statusMeta[sport.status].label}
                     </span>
                   </div>
 
-                  <p className="sports-list">{facility.sports.join(' • ')}</p>
-                  <p className="facility-note">{facility.note}</p>
+                  <p className="sports-list">{statusMeta[sport.status].summary}</p>
+                  <p className="facility-note">{sport.note}</p>
 
                   <div className="facility-meta">
-                    <span>{statusMeta[facility.status].summary}</span>
-                    <span>{facility.nextCheckpoint}</span>
+                    <span>{sport.facilityImpact}</span>
                   </div>
                 </article>
               ))}
@@ -510,23 +441,12 @@ function App() {
         <main className="page-grid">
           {!isSupabaseConfigured ? (
             <section className="panel auth-panel">
-              <p className="eyebrow">Admin Setup Required</p>
-              <h2>Supabase credentials are missing for this workspace.</h2>
+              <p className="eyebrow">Backend Setup Required</p>
+              <h2>Supabase is not configured for this workspace yet.</h2>
               <p className="hero-copy">
-                The admin flow now expects real Supabase authentication. Add the
-                required environment variables, restart the dev server, and then
-                sign in with a real admin account.
+                Public deployment and shared admin updates need Supabase data and auth
+                configured. Until then, the app stays in local-only demo mode.
               </p>
-
-              <div className="setup-box">
-                <p>
-                  Required vars: <code>VITE_SUPABASE_URL</code>,{' '}
-                  <code>VITE_SUPABASE_ANON_KEY</code>
-                </p>
-                <p>
-                  Optional allowlist: <code>VITE_ADMIN_EMAILS</code>
-                </p>
-              </div>
             </section>
           ) : !authReady ? (
             <section className="panel auth-panel">
@@ -536,11 +456,10 @@ function App() {
           ) : !isAdminAuthenticated ? (
             <section className="panel auth-panel">
               <p className="eyebrow">Supervisor Access</p>
-              <h2>Admin sign in for RecWell staff</h2>
+              <h2>Sign in with the shared supervisor account</h2>
               <p className="hero-copy">
-                This admin flow now uses Supabase email/password auth. If you
-                set an allowlist, only approved staff emails can enter the
-                dashboard after signing in.
+                For production use, keep the shared IM supervisor account inside
+                Supabase Auth instead of exposing its password in the frontend.
               </p>
 
               <form className="auth-form" onSubmit={(event) => void handleLogin(event)}>
@@ -562,216 +481,386 @@ function App() {
                   />
                 </label>
 
-                <button className="primary-button" disabled={authPending} type="submit">
-                  {authPending ? 'Signing in...' : 'Sign in to dashboard'}
+                <button className="primary-button" type="submit">
+                  Sign in to dashboard
                 </button>
               </form>
 
               {loginError ? <p className="error-text">{loginError}</p> : null}
-
-              {allowedAdminEmails.length > 0 ? (
-                <div className="demo-credentials">
-                  <p>Allowed admin emails:</p>
-                  <p>{allowedAdminEmails.join(', ')}</p>
-                </div>
-              ) : (
-                <div className="demo-credentials">
-                  <p>No admin allowlist is set yet.</p>
-                  <p>Any valid Supabase user can access admin until you add one.</p>
-                </div>
-              )}
             </section>
           ) : (
             <>
               <section className="hero-card admin-hero">
-                <p className="eyebrow">Supervisor Control Panel</p>
-                <h2>Update conditions once and reflect them across the public board.</h2>
-                <p className="hero-copy">
-                  The admin workflow here is centered around what supervisors
-                  need during a shift: flip statuses quickly, leave context, and
-                  make re-check times obvious.
-                </p>
+                <div className="admin-hero-top">
+                  <div>
+                    <p className="eyebrow">Supervisor Dashboard</p>
+                    <h2>Manage tonight’s sports board with shared live data.</h2>
+                    <p className="hero-copy">
+                      This admin flow is now aligned with a real public deployment:
+                      data is ready to be shared across devices, and admin login can
+                      live in a real auth system.
+                    </p>
+                  </div>
+
+                  <div className="admin-toolbar">
+                    <button
+                      className="primary-button"
+                      onClick={() => setIsAddSportOpen(true)}
+                      type="button"
+                    >
+                      Add sport
+                    </button>
+                  </div>
+                </div>
 
                 <div className="hero-metrics">
                   <article>
                     <span>{summary.total}</span>
-                    <p>Managed facilities</p>
+                    <p>Live sports tracked</p>
                   </article>
                   <article>
-                    <span>{alertFacilities.length}</span>
-                    <p>Active alerts</p>
+                    <span>{summary.alert}</span>
+                    <p>Sports on alert</p>
                   </article>
                   <article>
-                    <span>{summary.open}</span>
-                    <p>Currently open</p>
+                    <span>{archivedSports.length}</span>
+                    <p>Archived sports</p>
                   </article>
                 </div>
               </section>
 
-              <section className="panel add-facility-panel">
-                <div className="section-heading">
-                  <div>
-                    <p className="eyebrow">Add Facility</p>
-                    <h3>Support new spaces or temporary locations</h3>
+              <section className="panel admin-dashboard-grid">
+                <article className="dashboard-card dashboard-banner-card">
+                  <div className="section-heading">
+                    <div>
+                      <p className="eyebrow">Patron Banner</p>
+                      <h3>High-priority notice</h3>
+                    </div>
                   </div>
-                </div>
 
-                <form className="add-facility-form" onSubmit={addFacility}>
-                  <label>
-                    <span>Facility name</span>
-                    <input
-                      value={newFacility.name}
-                      onChange={(event) =>
-                        setNewFacility((current) => ({
-                          ...current,
-                          name: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
+                  {bannerSaveFeedback ? (
+                    <div className="action-feedback" role="status">
+                      {bannerSaveFeedback}
+                    </div>
+                  ) : null}
+
+                  <div className="banner-preview-card">
+                    <p className="eyebrow banner-eyebrow">Preview</p>
+                    <h4>{banner.title || 'High Priority Update'}</h4>
+                    <p>{banner.message || 'No message set yet.'}</p>
+                  </div>
 
                   <label>
-                    <span>Area</span>
-                    <input
-                      value={newFacility.area}
-                      onChange={(event) =>
-                        setNewFacility((current) => ({
-                          ...current,
-                          area: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-
-                  <label>
-                    <span>Type</span>
+                    <span>Banner visibility</span>
                     <select
-                      value={newFacility.type}
+                      value={banner.enabled ? 'enabled' : 'disabled'}
                       onChange={(event) =>
-                        setNewFacility((current) => ({
-                          ...current,
-                          type: event.target.value as FacilityType,
-                        }))
+                        void handleBannerSave(
+                          'enabled',
+                          event.target.value === 'enabled',
+                        )
                       }
                     >
-                      <option value="Outdoor">Outdoor</option>
-                      <option value="Indoor">Indoor</option>
+                      <option value="enabled">Enabled</option>
+                      <option value="disabled">Disabled</option>
                     </select>
                   </label>
 
                   <label>
-                    <span>Sports</span>
+                    <span>Banner title</span>
                     <input
-                      placeholder="Flag Football, Soccer"
-                      value={newFacility.sports}
+                      value={banner.title}
                       onChange={(event) =>
-                        setNewFacility((current) => ({
-                          ...current,
-                          sports: event.target.value,
-                        }))
+                        void handleBannerSave('title', event.target.value)
                       }
                     />
                   </label>
 
-                  <label className="full-span">
-                    <span>Starting note</span>
+                  <label>
+                    <span>Banner message</span>
                     <textarea
                       rows={3}
-                      value={newFacility.note}
+                      value={banner.message}
                       onChange={(event) =>
-                        setNewFacility((current) => ({
-                          ...current,
-                          note: event.target.value,
-                        }))
+                        void handleBannerSave('message', event.target.value)
                       }
                     />
                   </label>
+                </article>
 
-                  <button className="primary-button" type="submit">
-                    Add facility
-                  </button>
-                </form>
+                <article className="dashboard-card">
+                  <div className="section-heading">
+                    <div>
+                      <p className="eyebrow">All-Sport Actions</p>
+                      <h3>Update everything at once</h3>
+                    </div>
+                  </div>
+
+                  {bulkFeedback ? (
+                    <div className="action-feedback" role="status">
+                      {bulkFeedback}
+                    </div>
+                  ) : null}
+
+                  <div className="bulk-action-grid">
+                    <button
+                      className="bulk-action-card bulk-alert"
+                      onClick={() =>
+                        updateAllLiveSports(
+                          'alert',
+                          'All live sports are on alert. Check the banner and individual notes for tonight’s operating details.',
+                          'All live sports moved to Alert.',
+                        )
+                      }
+                      type="button"
+                    >
+                      <strong>Alert All Live Sports</strong>
+                      <span>Useful for weather delays, staffing issues, or system problems.</span>
+                    </button>
+
+                    <button
+                      className="bulk-action-card bulk-cancel"
+                      onClick={() =>
+                        updateAllLiveSports(
+                          'cancelled',
+                          'All live sports are cancelled. See the high-priority banner for tonight’s global update.',
+                          'All live sports moved to Cancelled.',
+                        )
+                      }
+                      type="button"
+                    >
+                      <strong>Cancel All Live Sports</strong>
+                      <span>Best for major weather, building shutdowns, or campus-wide issues.</span>
+                    </button>
+
+                    <button
+                      className="bulk-action-card bulk-active"
+                      onClick={() =>
+                        updateAllLiveSports(
+                          'active',
+                          'Normal operations have resumed for tonight’s live sports.',
+                          'All live sports moved to Active.',
+                        )
+                      }
+                      type="button"
+                    >
+                      <strong>Reactivate All Live Sports</strong>
+                      <span>Fast reset once conditions normalize.</span>
+                    </button>
+                  </div>
+                </article>
               </section>
 
               <section className="panel facilities-panel admin-panel">
                 <div className="section-heading">
                   <div>
-                    <p className="eyebrow">Live Admin Controls</p>
-                    <h3>Edit statuses and notes</h3>
+                    <p className="eyebrow">Live Sport Controls</p>
+                    <h3>Quick status editing for tonight’s board</h3>
                   </div>
                 </div>
 
-                <div className="admin-list">
-                  {facilities.map((facility) => (
-                    <article className="admin-card" key={facility.id}>
-                      <div className="admin-card-heading">
-                        <div>
-                          <p className="facility-area">
-                            {facility.area} • {facility.type}
-                          </p>
-                          <h4>{facility.name}</h4>
-                          <p className="sports-list">{facility.sports.join(' • ')}</p>
-                        </div>
-                        <span className={`status-pill ${statusMeta[facility.status].tone}`}>
-                          {statusMeta[facility.status].label}
-                        </span>
-                      </div>
+                {saveError ? <div className="error-text">{saveError}</div> : null}
 
-                      <div className="status-toggle">
-                        {(['open', 'delayed', 'closed'] as FacilityStatus[]).map(
-                          (status) => (
+                <div className="admin-list">
+                  {sports
+                    .filter((sport) => !sport.archived)
+                    .sort((left, right) => left.displayOrder - right.displayOrder)
+                    .map((sport) => (
+                      <article className="admin-card" key={sport.id}>
+                        <div className="admin-card-heading">
+                          <div>
+                            <p className="facility-area">{sport.category}</p>
+                            <h4>{sport.name}</h4>
+                            <p className="sports-list">{sport.facilityImpact}</p>
+                          </div>
+                          <span className={`status-pill ${statusMeta[sport.status].tone}`}>
+                            {statusMeta[sport.status].label}
+                          </span>
+                        </div>
+
+                        <div className="status-toggle">
+                          {(['active', 'alert', 'cancelled'] as SportStatus[]).map((status) => (
                             <button
                               key={status}
                               className={
-                                facility.status === status
+                                sport.status === status
                                   ? 'status-toggle-button active'
                                   : 'status-toggle-button'
                               }
-                              onClick={() =>
-                                updateFacility(facility.id, { status })
-                              }
+                              onClick={() => updateSport(sport.id, { status })}
                               type="button"
                             >
                               {statusMeta[status].label}
                             </button>
-                          ),
-                        )}
-                      </div>
+                          ))}
+                        </div>
 
-                      <label>
-                        <span>Supervisor note</span>
-                        <textarea
-                          rows={3}
-                          value={facility.note}
-                          onChange={(event) =>
-                            updateFacility(facility.id, {
-                              note: event.target.value,
-                            })
-                          }
-                        />
-                      </label>
+                        <label>
+                          <span>Notes</span>
+                          <textarea
+                            rows={3}
+                            value={sport.note}
+                            onChange={(event) =>
+                              updateSport(sport.id, { note: event.target.value })
+                            }
+                          />
+                        </label>
 
-                      <label>
-                        <span>Next checkpoint</span>
-                        <input
-                          value={facility.nextCheckpoint}
-                          onChange={(event) =>
-                            updateFacility(facility.id, {
-                              nextCheckpoint: event.target.value,
-                            })
-                          }
-                        />
-                      </label>
+                        <label>
+                          <span>Facility impact</span>
+                          <input
+                            value={sport.facilityImpact}
+                            onChange={(event) =>
+                              updateSport(sport.id, {
+                                facilityImpact: event.target.value,
+                              })
+                            }
+                          />
+                        </label>
 
-                      <p className="microcopy">Updated: {facility.updatedAt}</p>
-                    </article>
-                  ))}
+                        <div className="admin-actions">
+                          <button
+                            className="ghost-button"
+                            onClick={() => updateSport(sport.id, { archived: true })}
+                            type="button"
+                          >
+                            Archive sport
+                          </button>
+                        </div>
+
+                        <p className="microcopy">
+                          Updated: {sport.updatedAt} • {statusMeta[sport.status].adminLabel}
+                        </p>
+                      </article>
+                    ))}
                 </div>
               </section>
+
+              {archivedSports.length > 0 ? (
+                <section className="panel">
+                  <div className="section-heading">
+                    <div>
+                      <p className="eyebrow">Archived Sports</p>
+                      <h3>Seasonal offerings stored out of the live board</h3>
+                    </div>
+                  </div>
+
+                  <div className="admin-list">
+                    {archivedSports
+                      .sort((left, right) => left.displayOrder - right.displayOrder)
+                      .map((sport) => (
+                        <article className="admin-card" key={sport.id}>
+                          <div className="admin-card-heading">
+                            <div>
+                              <p className="facility-area">{sport.category}</p>
+                              <h4>{sport.name}</h4>
+                            </div>
+                            <span className="status-pill status-delayed">Archived</span>
+                          </div>
+
+                          <p className="facility-note">{sport.note}</p>
+
+                          <div className="admin-actions">
+                            <button
+                              className="ghost-button"
+                              onClick={() => updateSport(sport.id, { archived: false })}
+                              type="button"
+                            >
+                              Restore sport
+                            </button>
+                          </div>
+                        </article>
+                      ))}
+                  </div>
+                </section>
+              ) : null}
             </>
           )}
         </main>
       )}
+
+      {isAddSportOpen ? (
+        <div className="modal-shell" role="dialog" aria-modal="true">
+          <div className="modal-card">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Add Sport</p>
+                <h3>Create a new seasonal or special-event sport</h3>
+              </div>
+              <button
+                className="ghost-button"
+                onClick={() => setIsAddSportOpen(false)}
+                type="button"
+              >
+                Close
+              </button>
+            </div>
+
+            <form className="add-facility-form" onSubmit={(event) => void addSport(event)}>
+              <label>
+                <span>Sport name</span>
+                <input
+                  value={newSport.name}
+                  onChange={(event) =>
+                    setNewSport((current) => ({
+                      ...current,
+                      name: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+
+              <label>
+                <span>Category</span>
+                <select
+                  value={newSport.category}
+                  onChange={(event) =>
+                    setNewSport((current) => ({
+                      ...current,
+                      category: event.target.value as SportCategory,
+                    }))
+                  }
+                >
+                  <option value="Outdoor">Outdoor</option>
+                  <option value="Indoor">Indoor</option>
+                  <option value="Special Event">Special Event</option>
+                </select>
+              </label>
+
+              <label>
+                <span>Facility impact</span>
+                <input
+                  value={newSport.facilityImpact}
+                  onChange={(event) =>
+                    setNewSport((current) => ({
+                      ...current,
+                      facilityImpact: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+
+              <label className="full-span">
+                <span>Notes</span>
+                <textarea
+                  rows={3}
+                  value={newSport.note}
+                  onChange={(event) =>
+                    setNewSport((current) => ({
+                      ...current,
+                      note: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+
+              <button className="primary-button" type="submit">
+                Add sport
+              </button>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

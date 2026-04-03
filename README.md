@@ -1,48 +1,91 @@
-# Purdue Intramurals Facility Tracker MVP
+# Purdue Intramurals Sports Status Board
 
-This is a first-pass web app for a Purdue RecWell intramural facility tracker. It focuses on the problem you called out first: quickly communicating facility availability to patrons while giving supervisors a simple admin workflow for status changes.
+This project is moving from prototype to public-ready foundation. It keeps the sport-first public board and admin dashboard, while adding a real backend path with Supabase for shared live data and secure admin authentication.
 
-## What is included
+## What it does now
 
-- Public-facing live status board for indoor and outdoor facilities
-- Filters for activity, facility type, and status
-- Admin sign-in screen for supervisors
-- Admin dashboard with quick status toggles, editable notes, and next-checkpoint fields
-- Add-facility flow for new or temporary spaces
-- Local persistence with `localStorage` so changes survive refresh during demos
+- Public-facing live sports status board
+- High-priority red global banner
+- Admin dashboard for sport status edits
+- Archive and restore seasonal sports
+- One-click all-sport actions for alert, cancel, and reactivate
+- Modal flow for adding sports
+- Supabase-ready shared data and admin auth path
+- Local fallback for development before backend setup is complete
 
-## Run locally
+## Local setup
 
 ```bash
 npm install
 npm run dev
 ```
 
-## Environment setup
+Create a `.env.local` file from `.env.example`:
 
-Create a `.env.local` file from `.env.example` and add:
+```bash
+cp .env.example .env.local
+```
+
+Then add:
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
-- `VITE_ADMIN_EMAILS` as a comma-separated allowlist of admin emails
 
-The app now uses Supabase email/password auth for admin login. If `VITE_ADMIN_EMAILS` is left blank, any valid Supabase user can sign in as an admin.
+## Supabase setup
 
-## Current architecture
+1. Create a Supabase project.
+2. Open the SQL editor.
+3. Run [schema.sql](/Users/jasonlyu/Documents/IM_Website_Project/supabase/schema.sql).
+4. In Supabase Auth, create the shared supervisor account you want staff to use.
+5. Copy the project URL and anon key into `.env.local`.
 
-- `React + TypeScript + Vite`
-- Supabase Auth for admin authentication
-- Single-page MVP with local state and browser persistence for facility data
-- No shared facility backend yet
+This keeps the shared admin password inside Supabase Auth instead of exposing it in frontend environment variables.
 
-## Best next steps
+## Deployment path
 
-1. Connect Supabase auth to Purdue-specific staff onboarding or SSO.
-2. Move facility data into a backend so updates sync across devices in real time.
-3. Add status history, weather-triggered workflows, and shift attribution.
-4. Add role distinctions like supervisor, student staff, and read-only operations.
-5. Add facility grouping rules that match actual RecWell operations.
+Recommended production stack:
 
-## Product notes
+- Frontend hosting: `Vercel`
+- Shared data + auth: `Supabase`
+- Custom domain: later, after initial testing
 
-This version intentionally keeps the stack lightweight so we can validate workflow and UI direction first. Once you share more details about real facilities, status rules, or staff process, this can become the foundation for a fuller intramurals platform.
+## Plain-English architecture
+
+- `React + Vite` renders the website people visit.
+- `Supabase` stores shared sport data and the global banner.
+- `Supabase Auth` handles admin sign-in securely.
+- `Vercel` hosts the website publicly on the internet.
+
+That means:
+
+- public users read shared sports data
+- admins sign in and update shared sports data
+- all devices see the same current information
+
+## Reliability roadmap
+
+### Phase 1: Shared foundation
+
+- Supabase sports table
+- Supabase banner table
+- Shared admin login
+- Public deployment
+
+### Phase 2: Operational safety
+
+- audit log for updates
+- last-updated-by display
+- rollback / undo support
+- stronger admin protections
+
+### Phase 3: Product expansion
+
+- improved mobile polish
+- sport ordering controls
+- richer facility-impact details
+- weather integrations
+- future notifications
+
+## Current note
+
+If Supabase is not configured yet, the app still falls back to local demo-style data so development can continue. Once configured, the same UI becomes a real shared operational tool.
