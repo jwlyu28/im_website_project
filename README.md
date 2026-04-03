@@ -49,6 +49,39 @@ Recommended production stack:
 - Shared data + auth: `Supabase`
 - Custom domain: later, after initial testing
 
+## Vercel deployment
+
+Vercel supports Vite projects directly, so this app does not need special build tooling to deploy. Vercel's Vite guide says you can deploy a Vite project by running `vercel` from the project root or by importing the Git repo in the dashboard. It also notes that environment variable changes only apply to new deployments after redeploying. See:
+
+- [Vite on Vercel](https://vercel.com/docs/frameworks/frontend/vite)
+- [Project settings](https://vercel.com/docs/project-configuration/project-settings)
+- [Environment variables](https://vercel.com/docs/environment-variables)
+- [Managing environment variables](https://vercel.com/docs/environment-variables/managing-environment-variables)
+- [Working with domains](https://vercel.com/docs/projects/domains/working-with-domains)
+
+### What to put into Vercel
+
+Add these environment variables in your Vercel project settings:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+### Recommended deployment flow
+
+1. Push this repo to GitHub.
+2. Import the repo into Vercel.
+3. Let Vercel auto-detect the framework as `Vite`.
+4. Confirm the build command is `npm run build`.
+5. Confirm the output directory is `dist`.
+6. Add the Supabase environment variables in Vercel Project Settings.
+7. Trigger a production deployment.
+8. Test the `vercel.app` URL first.
+9. Add a custom domain after the public workflow feels stable.
+
+### Important production note
+
+Your current auth model uses a shared supervisor account in Supabase Auth. That is much safer than putting a shared password into frontend environment variables, but for long-term production use I still recommend moving to individual staff accounts and adding an audit log.
+
 ## Plain-English architecture
 
 - `React + Vite` renders the website people visit.
