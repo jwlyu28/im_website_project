@@ -49,6 +49,7 @@ function App() {
   const [statusFilter, setStatusFilter] = useState<'All' | SportStatus>('All')
   const [sports, setSports] = useState<SportProgram[]>(defaultSports)
   const [banner, setBanner] = useState<GlobalBanner>(defaultBanner)
+  const [bannerDraft, setBannerDraft] = useState<GlobalBanner>(defaultBanner)
   const [session, setSession] = useState<Session | null>(null)
   const [authReady, setAuthReady] = useState(!isSupabaseConfigured)
   const [dataReady, setDataReady] = useState(false)
@@ -78,6 +79,7 @@ function App() {
 
         setSports(loadedSports)
         setBanner(loadedBanner)
+        setBannerDraft(loadedBanner)
         setAuditLog(loadedAuditLog)
         setDataReady(true)
       },
@@ -176,6 +178,23 @@ function App() {
     [liveSports],
   )
 
+  function getErrorMessage(error: unknown, fallback: string) {
+    if (error && typeof error === 'object' && 'message' in error) {
+      const message = String(error.message)
+      if (
+        message.includes('updated_by') ||
+        message.includes('audit_log') ||
+        message.includes('column') ||
+        message.includes('schema')
+      ) {
+        return `${fallback} This usually means your Supabase schema needs the latest update.`
+      }
+      return `${fallback} ${message}`
+    }
+
+    return fallback
+  }
+
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setLoginError('')
@@ -220,8 +239,10 @@ function App() {
       )
       const nextAuditLog = await loadAuditLog()
       setAuditLog(nextAuditLog)
-    } catch {
-      setSaveError('A shared save failed. Refresh and try again.')
+    } catch (error) {
+      setSaveError(
+        getErrorMessage(error, 'A shared save failed. Refresh and try again.'),
+      )
     }
   }
 
@@ -268,13 +289,15 @@ function App() {
         const nextAuditLog = await loadAuditLog()
         setAuditLog(nextAuditLog)
       })
-      .catch(() => {
-        setSaveError('A shared save failed. Refresh and try again.')
+      .catch((error) => {
+        setSaveError(
+          getErrorMessage(error, 'A shared save failed. Refresh and try again.'),
+        )
       })
   }
 
-  async function handleBannerSave(field: keyof GlobalBanner, value: string | boolean) {
-    const nextBanner = { ...banner, [field]: value }
+  async function handleBannerSave() {
+    const nextBanner = { ...bannerDraft }
     setBanner(nextBanner)
     setSaveError('')
 
@@ -283,13 +306,15 @@ function App() {
         nextBanner,
         actorEmail,
         'banner-updated',
-        `Updated banner ${field}.`,
+        'Updated the global banner.',
       )
       setBannerSaveFeedback('Banner saved.')
       const nextAuditLog = await loadAuditLog()
       setAuditLog(nextAuditLog)
-    } catch {
-      setSaveError('Banner save failed. Refresh and try again.')
+    } catch (error) {
+      setSaveError(
+        getErrorMessage(error, 'Banner save failed. Refresh and try again.'),
+      )
     }
   }
 
@@ -329,8 +354,10 @@ function App() {
         note: '',
       })
       setIsAddSportOpen(false)
-    } catch {
-      setSaveError('Sport creation failed. Refresh and try again.')
+    } catch (error) {
+      setSaveError(
+        getErrorMessage(error, 'Sport creation failed. Refresh and try again.'),
+      )
     }
   }
 
@@ -587,12 +614,12 @@ function App() {
                   <label>
                     <span>Banner visibility</span>
                     <select
-                      value={banner.enabled ? 'enabled' : 'disabled'}
+                      value={bannerDraft.enabled ? 'enabled' : 'disabled'}
                       onChange={(event) =>
-                        void handleBannerSave(
-                          'enabled',
-                          event.target.value === 'enabled',
-                        )
+                        setBannerDraft((current) => ({
+                          ...current,
+                          enabled: event.target.value === 'enabled',
+                        }))
                       }
                     >
                       <option value="enabled">Enabled</option>
@@ -603,9 +630,12 @@ function App() {
                   <label>
                     <span>Banner title</span>
                     <input
-                      value={banner.title}
+                      value={bannerDraft.title}
                       onChange={(event) =>
-                        void handleBannerSave('title', event.target.value)
+                        setBannerDraft((current) => ({
+                          ...current,
+                          title: event.target.value,
+                        }))
                       }
                     />
                   </label>
@@ -614,12 +644,32 @@ function App() {
                     <span>Banner message</span>
                     <textarea
                       rows={3}
-                      value={banner.message}
+                      value={bannerDraft.message}
                       onChange={(event) =>
-                        void handleBannerSave('message', event.target.value)
+                        setBannerDraft((current) => ({
+                          ...current,
+                          message: event.target.value,
+                        }))
                       }
                     />
                   </label>
+
+                  <div className="admin-actions">
+                    <button
+                      className="primary-button"
+                      onClick={() => void handleBannerSave()}
+                      type="button"
+                    >
+                      Save banner
+                    </button>
+                    <button
+                      className="ghost-button"
+                      onClick={() => setBannerDraft(banner)}
+                      type="button"
+                    >
+                      Reset changes
+                    </button>
+                  </div>
                 </article>
 
                 <article className="dashboard-card">

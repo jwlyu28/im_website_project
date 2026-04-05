@@ -259,13 +259,17 @@ async function insertAuditLog(
     return
   }
 
-  await supabase.from('audit_log').insert({
+  const { error } = await supabase.from('audit_log').insert({
     entity_type: entityType,
     entity_id: entityId,
     action,
     actor_email: actorEmail,
     summary,
   })
+
+  if (error) {
+    throw error
+  }
 }
 
 export async function loadSports(): Promise<SportProgram[]> {
@@ -313,7 +317,11 @@ export async function saveSportWithAudit(
   }
 
   await saveSport(nextSport)
-  await insertAuditLog('sport', sport.id, action, actorEmail, summary)
+  try {
+    await insertAuditLog('sport', sport.id, action, actorEmail, summary)
+  } catch {
+    // Keep core sport updates working even if audit logging is not ready yet.
+  }
 }
 
 export async function createSport(sport: SportProgram) {
@@ -339,13 +347,17 @@ export async function createSportWithAudit(
   }
 
   await createSport(nextSport)
-  await insertAuditLog(
-    'sport',
-    sport.id,
-    'created',
-    actorEmail,
-    `Created ${sport.name}.`,
-  )
+  try {
+    await insertAuditLog(
+      'sport',
+      sport.id,
+      'created',
+      actorEmail,
+      `Created ${sport.name}.`,
+    )
+  } catch {
+    // Keep core sport creation working even if audit logging is not ready yet.
+  }
 }
 
 export async function saveAllSports(sports: SportProgram[]) {
@@ -372,7 +384,11 @@ export async function saveAllSportsWithAudit(
   )
 
   await saveAllSports(nextSports)
-  await insertAuditLog('sport', 'all-live-sports', action, actorEmail, summary)
+  try {
+    await insertAuditLog('sport', 'all-live-sports', action, actorEmail, summary)
+  } catch {
+    // Keep core bulk updates working even if audit logging is not ready yet.
+  }
 }
 
 export async function loadBanner(): Promise<GlobalBanner> {
@@ -451,7 +467,11 @@ export async function saveBannerWithAudit(
     throw error
   }
 
-  await insertAuditLog('banner', 'global-banner', action, actorEmail, summary)
+  try {
+    await insertAuditLog('banner', 'global-banner', action, actorEmail, summary)
+  } catch {
+    // Keep core banner updates working even if audit logging is not ready yet.
+  }
 }
 
 export async function loadAuditLog(): Promise<AuditLogEntry[]> {
