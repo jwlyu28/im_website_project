@@ -1,126 +1,249 @@
-# Purdue Intramurals Sports Status Board
+# Purdue Intramurals Status Board
 
-This project is moving from prototype to public-ready foundation. It keeps the sport-first public board and admin dashboard, while adding a real backend path with Supabase for shared live data and secure admin authentication.
+A sport-first status board for Purdue RecWell Intramurals. The app gives patrons a simple public page to check whether a sport is still running, and gives supervisors an admin dashboard to update sport status, post a high-priority banner, archive seasonal sports, and review recent activity.
 
-## What it does now
+## What the app does
 
-- Public-facing live sports status board
-- High-priority red global banner
-- Admin dashboard for sport status edits
-- Archive and restore seasonal sports
-- One-click all-sport actions for alert, cancel, and reactivate
-- Modal flow for adding sports
-- Supabase-ready shared data and admin auth path
-- Local fallback for development before backend setup is complete
+- Shows a public-facing live status board for intramural sports
+- Supports three sport states: `Active`, `Alert`, and `Cancelled`
+- Displays a high-priority red banner above the public sport list
+- Lets admins sign in with Supabase Auth
+- Lets admins edit sport status, notes, and facility impact
+- Supports one-click bulk actions for all live sports
+- Supports archiving and restoring seasonal sports
+- Records recent admin activity in an audit log
+- Shows who last updated a sport or banner
 
-## Local setup
+## Current stack
+
+- `React 19`
+- `TypeScript`
+- `Vite`
+- `Supabase` for auth and shared data
+- `Vercel` for deployment
+
+## How it works
+
+The app has two modes:
+
+- Public mode: anyone can view current sports and the high-priority banner
+- Admin mode: supervisors can sign in and update statuses
+
+If Supabase is configured, the app uses shared live data so all users see the same updates.
+
+If Supabase is not configured, the app falls back to local browser storage so development can continue without a backend.
+
+## Project structure
+
+- [`src/App.tsx`](/Users/jasonlyu/Documents/IM_Website_Project/src/App.tsx): main UI for the public board and admin dashboard
+- [`src/lib/data.ts`](/Users/jasonlyu/Documents/IM_Website_Project/src/lib/data.ts): data loading, saving, local fallback, and audit log helpers
+- [`src/lib/supabase.ts`](/Users/jasonlyu/Documents/IM_Website_Project/src/lib/supabase.ts): Supabase client setup
+- [`supabase/schema.sql`](/Users/jasonlyu/Documents/IM_Website_Project/supabase/schema.sql): base database schema and RLS policies
+- [`src/index.css`](/Users/jasonlyu/Documents/IM_Website_Project/src/index.css): styling
+
+## Local development
+
+Install dependencies:
 
 ```bash
 npm install
+```
+
+Start the dev server:
+
+```bash
 npm run dev
 ```
 
-Create a `.env.local` file from `.env.example`:
+Build for production:
 
 ```bash
-cp .env.example .env.local
+npm run build
 ```
 
-Then add:
+Run linting:
 
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
+```bash
+npm run lint
+```
+
+## Environment variables
+
+Create a `.env.local` file in the project root with:
+
+```bash
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+Only these two environment variables are needed in the frontend.
+
+Old frontend-shared-password variables are no longer used and should not be kept:
+
+- `VITE_ADMIN_EMAIL`
+- `VITE_ADMIN_PASSWORD`
+- `VITE_ADMIN_EMAILS`
 
 ## Supabase setup
 
 1. Create a Supabase project.
-2. Open the SQL editor.
-3. Run [schema.sql](/Users/jasonlyu/Documents/IM_Website_Project/supabase/schema.sql).
-4. In Supabase Auth, create the shared supervisor account you want staff to use.
-5. Copy the project URL and anon key into `.env.local`.
+2. Open the SQL Editor.
+3. Run the schema from [`supabase/schema.sql`](/Users/jasonlyu/Documents/IM_Website_Project/supabase/schema.sql) if this is a brand-new database.
+4. In Supabase Auth, create the shared admin account used by supervisors.
+5. Add the Supabase URL and anon key to `.env.local`.
 
-If you already set up Supabase earlier, rerun the updated schema now so the new `audit_log` table and `updated_by` fields are created.
+### Important note for existing databases
 
-This keeps the shared admin password inside Supabase Auth instead of exposing it in frontend environment variables.
+Do not blindly rerun the full schema file on an already-configured production database. The schema file contains named policies, and rerunning it can fail with errors like:
 
-## Deployment path
+```text
+policy "public can read sports" for table "sports" already exists
+```
 
-Recommended production stack:
+For existing environments, use incremental SQL changes instead of rerunning the entire schema.
+
+## Database overview
+
+The current app expects these tables:
+
+- `sports`
+- `global_banner`
+- `audit_log`
+
+Key data fields used by the UI include:
+
+- Sport name
+- Category
+- Status
+- Note
+- Facility impact
+- Archived flag
+- Display order
+- Updated at
+- Updated by
+
+## Authentication model
+
+Right now the admin side uses Supabase Auth with a shared supervisor login. That is much better than putting a shared password directly in the frontend code, and it is enough for the current phase of the project.
+
+For a future production version, the stronger long-term direction is:
+
+- one account per staff member
+- role-based access
+- clearer audit history by individual user
+
+## Current user flows
+
+### Public users
+
+- Open the website
+- See the high-priority banner if one is active
+- Filter sports by category or status
+- Read notes and facility impacts
+
+### Admin users
+
+- Sign in
+- Edit a single sport
+- Archive or restore a sport
+- Add a new sport
+- Update the global banner
+- Run a bulk action across all live sports
+- Review the recent activity log
+
+## Deployment
+
+The app is set up well for Vercel deployment.
+
+### Recommended production services
 
 - Frontend hosting: `Vercel`
-- Shared data + auth: `Supabase`
-- Custom domain: later, after initial testing
+- Backend/auth/database: `Supabase`
 
-## Vercel deployment
+### Vercel setup
 
-Vercel supports Vite projects directly, so this app does not need special build tooling to deploy. Vercel's Vite guide says you can deploy a Vite project by running `vercel` from the project root or by importing the Git repo in the dashboard. It also notes that environment variable changes only apply to new deployments after redeploying. See:
+When creating the Vercel project:
 
-- [Vite on Vercel](https://vercel.com/docs/frameworks/frontend/vite)
-- [Project settings](https://vercel.com/docs/project-configuration/project-settings)
-- [Environment variables](https://vercel.com/docs/environment-variables)
-- [Managing environment variables](https://vercel.com/docs/environment-variables/managing-environment-variables)
-- [Working with domains](https://vercel.com/docs/projects/domains/working-with-domains)
+- Framework preset: `Vite`
+- Build command: `npm run build`
+- Output directory: `dist`
 
-### What to put into Vercel
-
-Add these environment variables in your Vercel project settings:
+Add these environment variables in Vercel Project Settings:
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 
-### Recommended deployment flow
+After deploy, test in this order:
 
-1. Push this repo to GitHub.
-2. Import the repo into Vercel.
-3. Let Vercel auto-detect the framework as `Vite`.
-4. Confirm the build command is `npm run build`.
-5. Confirm the output directory is `dist`.
-6. Add the Supabase environment variables in Vercel Project Settings.
-7. Trigger a production deployment.
-8. Test the `vercel.app` URL first.
-9. Add a custom domain after the public workflow feels stable.
+1. Public page loads.
+2. Sports and banner appear.
+3. Admin login works.
+4. A status edit persists after refresh.
 
-### Important production note
+## Reliability notes
 
-Your current auth model uses a shared supervisor account in Supabase Auth. That is much safer than putting a shared password into frontend environment variables, but for long-term production use I still recommend moving to individual staff accounts and adding an audit log.
+This app is a solid operational prototype and can already work as a shared public tool, but a few reliability ideas still matter before treating it as a high-trust production system:
 
-## Plain-English architecture
+- per-user staff accounts instead of one shared account
+- rollback or undo for mistaken updates
+- stronger validation and clearer admin-side error handling
+- optional realtime updates if you want pages to refresh instantly without reload
+- monitoring and uptime checks
 
-- `React + Vite` renders the website people visit.
-- `Supabase` stores shared sport data and the global banner.
-- `Supabase Auth` handles admin sign-in securely.
-- `Vercel` hosts the website publicly on the internet.
+## Product roadmap
 
-That means:
+### Phase 1: Current foundation
 
-- public users read shared sports data
-- admins sign in and update shared sports data
-- all devices see the same current information
+- Public sport status board
+- Admin dashboard
+- Supabase auth and data
+- Global banner
+- Archive/restore
+- Audit log
+- Last updated by
 
-## Reliability roadmap
+### Phase 2: Public-ready polish
 
-### Phase 1: Shared foundation
+- Cleaner mobile experience
+- Better empty states and loading states
+- Accessibility pass
+- Stronger admin feedback and confirmations
+- Improved sort/order controls for sports
 
-- Supabase sports table
-- Supabase banner table
-- Shared admin login
-- Public deployment
+### Phase 3: Operations features
 
-### Phase 2: Operational safety
+- Undo / rollback for recent changes
+- Individual staff accounts
+- Optional realtime subscriptions
+- Scheduled status changes
+- Weather and field-condition integrations
 
-- audit log for updates
-- last-updated-by display
-- rollback / undo support
-- stronger admin protections
+### Phase 4: Broader IM platform ideas
 
-### Phase 3: Product expansion
+- Sport-specific announcements
+- Game-night staffing notes
+- Facility map and impact view
+- Patron-facing notifications
+- Historical cancellation reporting
+- Integration ideas for registration or league tools
 
-- improved mobile polish
-- sport ordering controls
-- richer facility-impact details
-- weather integrations
-- future notifications
+## Next ideas worth building
 
-## Current note
+If we continue from this version, the highest-value next steps are probably:
 
-If Supabase is not configured yet, the app still falls back to local demo-style data so development can continue. Once configured, the same UI becomes a real shared operational tool.
+- individual staff logins
+- undo for admin edits
+- mobile UI polish
+- optional realtime syncing
+- better sport ordering controls
+
+## Notes for this repo
+
+- The app is intentionally sport-first rather than facility-first.
+- Division-level status was removed to keep operations simpler.
+- Scheduling was intentionally deferred for now.
+- The red banner is treated as the highest-priority message for patrons.
+
+## License
+
+No license has been added yet. If this project will become a public repository, adding a license is a good next step.
