@@ -44,6 +44,10 @@ const statusMeta: Record<
 }
 
 function App() {
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    const savedTheme = window.localStorage.getItem('purdue-im-theme')
+    return savedTheme === 'light' ? 'light' : 'dark'
+  })
   const [mode, setMode] = useState<'public' | 'admin'>('public')
   const [categoryFilter, setCategoryFilter] = useState<'All' | SportCategory>('All')
   const [statusFilter, setStatusFilter] = useState<'All' | SportStatus>('All')
@@ -67,6 +71,11 @@ function App() {
     facilityImpact: '',
     note: '',
   })
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    window.localStorage.setItem('purdue-im-theme', theme)
+  }, [theme])
 
   useEffect(() => {
     let isActive = true
@@ -369,10 +378,18 @@ function App() {
       <header className="topbar">
         <div>
           <p className="eyebrow">Purdue RecWell Intramurals</p>
-          <h1 className="brand">Sports Status MVP</h1>
+          <h1 className="brand">Purdue IM Sports Status</h1>
         </div>
 
         <div className="topbar-actions">
+          <button
+            className="ghost-button theme-toggle"
+            onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
+            type="button"
+          >
+            {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          </button>
+
           <div className="view-switch" aria-label="App mode selector">
             <button
               className={mode === 'public' ? 'active' : ''}
@@ -413,7 +430,7 @@ function App() {
             <div className="section-heading">
               <div>
                 <p className="eyebrow">Filter Sports</p>
-                <h3>Find the right program quickly</h3>
+                <h3>Check tonight&apos;s sport status</h3>
               </div>
               <p className="microcopy">Last update: {recentUpdate}</p>
             </div>
@@ -447,8 +464,8 @@ function App() {
               </label>
 
               <div className="setup-box">
-                <p>Priority framing:</p>
-                <p>Sport status first, details second.</p>
+                <p>How to read this board</p>
+                <p>Check the status first, then review notes and facility impact.</p>
               </div>
             </div>
           </section>
@@ -457,7 +474,7 @@ function App() {
             <div className="section-heading">
               <div>
                 <p className="eyebrow">Sport Statuses</p>
-                <h3>Built for quick participant scanning</h3>
+                <h3>Live intramural sport updates</h3>
               </div>
               <div className="legend">
                 <span className="legend-pill open">Active</span>
@@ -506,7 +523,7 @@ function App() {
               <h2>Supabase is not configured for this workspace yet.</h2>
               <p className="hero-copy">
                 Public deployment and shared admin updates need Supabase data and auth
-                configured. Until then, the app stays in local-only demo mode.
+                configured. Until then, this app runs locally in the browser.
               </p>
             </section>
           ) : !authReady ? (
@@ -519,8 +536,8 @@ function App() {
               <p className="eyebrow">Supervisor Access</p>
               <h2>Sign in with the shared supervisor account</h2>
               <p className="hero-copy">
-                For production use, keep the shared IM supervisor account inside
-                Supabase Auth instead of exposing its password in the frontend.
+                Supervisors can update the public sports board, banner, and activity log
+                from one place.
               </p>
 
               <form className="auth-form" onSubmit={(event) => void handleLogin(event)}>
@@ -555,11 +572,10 @@ function App() {
                 <div className="admin-hero-top">
                   <div>
                     <p className="eyebrow">Supervisor Dashboard</p>
-                    <h2>Manage tonight’s sports board with shared live data.</h2>
+                    <h2>Manage tonight&apos;s sports board.</h2>
                     <p className="hero-copy">
-                      This admin flow is now aligned with a real public deployment:
-                      data is ready to be shared across devices, and admin login can
-                      live in a real auth system.
+                      Update sport statuses, post campus-wide notices, and keep the
+                      public board accurate across devices.
                     </p>
                   </div>
 
