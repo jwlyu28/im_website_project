@@ -521,7 +521,7 @@ function App() {
             <section className="panel auth-panel">
               <p className="eyebrow">Backend Setup Required</p>
               <h2>Supabase is not configured for this workspace yet.</h2>
-              <p className="hero-copy">
+              <p className="facility-note">
                 Public deployment and shared admin updates need Supabase data and auth
                 configured. Until then, this app runs locally in the browser.
               </p>
@@ -535,7 +535,7 @@ function App() {
             <section className="panel auth-panel">
               <p className="eyebrow">Supervisor Access</p>
               <h2>Sign in with the shared supervisor account</h2>
-              <p className="hero-copy">
+              <p className="facility-note">
                 Supervisors can update the public sports board, banner, and activity log
                 from one place.
               </p>
@@ -568,14 +568,13 @@ function App() {
             </section>
           ) : (
             <>
-              <section className="hero-card admin-hero">
-                <div className="admin-hero-top">
+              <section className="panel admin-header-panel">
+                <div className="admin-header-row">
                   <div>
                     <p className="eyebrow">Supervisor Dashboard</p>
-                    <h2>Manage tonight&apos;s sports board.</h2>
-                    <p className="hero-copy">
-                      Update sport statuses, post campus-wide notices, and keep the
-                      public board accurate across devices.
+                    <h2>Manage sports and notices</h2>
+                    <p className="microcopy">
+                      Signed in as {actorEmail}
                     </p>
                   </div>
 
@@ -589,21 +588,6 @@ function App() {
                     </button>
                   </div>
                 </div>
-
-                <div className="hero-metrics">
-                  <article>
-                    <span>{summary.total}</span>
-                    <p>Live sports tracked</p>
-                  </article>
-                  <article>
-                    <span>{summary.alert}</span>
-                    <p>Sports on alert</p>
-                  </article>
-                  <article>
-                    <span>{archivedSports.length}</span>
-                    <p>Archived sports</p>
-                  </article>
-                </div>
               </section>
 
               <section className="panel admin-dashboard-grid">
@@ -611,7 +595,7 @@ function App() {
                   <div className="section-heading">
                     <div>
                       <p className="eyebrow">Patron Banner</p>
-                      <h3>High-priority notice</h3>
+                      <h3>Public notice</h3>
                     </div>
                   </div>
 
@@ -692,7 +676,7 @@ function App() {
                   <div className="section-heading">
                     <div>
                       <p className="eyebrow">All-Sport Actions</p>
-                      <h3>Update everything at once</h3>
+                      <h3>Bulk updates</h3>
                     </div>
                   </div>
 
@@ -715,7 +699,7 @@ function App() {
                       type="button"
                     >
                       <strong>Alert All Live Sports</strong>
-                      <span>Useful for weather delays, staffing issues, or system problems.</span>
+                      <span>Use when programs are delayed or need attention.</span>
                     </button>
 
                     <button
@@ -730,7 +714,7 @@ function App() {
                       type="button"
                     >
                       <strong>Cancel All Live Sports</strong>
-                      <span>Best for major weather, building shutdowns, or campus-wide issues.</span>
+                      <span>Use when all active programs need to stop.</span>
                     </button>
 
                     <button
@@ -745,7 +729,7 @@ function App() {
                       type="button"
                     >
                       <strong>Reactivate All Live Sports</strong>
-                      <span>Fast reset once conditions normalize.</span>
+                      <span>Use when normal operations resume.</span>
                     </button>
                   </div>
                 </article>
@@ -755,8 +739,11 @@ function App() {
                 <div className="section-heading">
                   <div>
                     <p className="eyebrow">Live Sport Controls</p>
-                    <h3>Quick status editing for tonight’s board</h3>
+                    <h3>Live sports</h3>
                   </div>
+                  <p className="microcopy">
+                    {summary.total} live • {summary.alert} alert • {archivedSports.length} archived
+                  </p>
                 </div>
 
                 {saveError ? <div className="error-text">{saveError}</div> : null}
@@ -841,7 +828,7 @@ function App() {
                 <div className="section-heading">
                   <div>
                     <p className="eyebrow">Recent Activity</p>
-                    <h3>Audit trail for recent changes</h3>
+                    <h3>Recent changes</h3>
                   </div>
                 </div>
 
@@ -882,7 +869,7 @@ function App() {
                   <div className="section-heading">
                     <div>
                       <p className="eyebrow">Archived Sports</p>
-                      <h3>Seasonal offerings stored out of the live board</h3>
+                      <h3>Archived sports</h3>
                     </div>
                   </div>
 

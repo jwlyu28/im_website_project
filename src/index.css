@@ -257,7 +257,6 @@ h4 {
   line-height: 1.6;
 }
 
-.hero-card,
 .panel {
   position: relative;
   overflow: hidden;
@@ -268,21 +267,7 @@ h4 {
   box-shadow: var(--shadow);
 }
 
-.hero-card {
-  padding: clamp(28px, 6vw, 48px);
-  min-height: 22rem;
-  background:
-    radial-gradient(circle at top right, rgba(207, 185, 145, 0.18), transparent 30%),
-    linear-gradient(135deg, rgba(12, 12, 12, 0.96), rgba(28, 28, 28, 0.94));
-}
-
-:root[data-theme='light'] .hero-card {
-  background:
-    radial-gradient(circle at top right, rgba(207, 185, 145, 0.24), transparent 30%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 244, 237, 0.96));
-}
-
-.admin-hero-top {
+.admin-header-row {
   display: flex;
   justify-content: space-between;
   gap: 20px;
@@ -295,43 +280,6 @@ h4 {
   flex-wrap: wrap;
 }
 
-.hero-card h2 {
-  max-width: 12ch;
-  font-size: clamp(2.3rem, 6vw, 5rem);
-  line-height: 0.94;
-  letter-spacing: -0.07em;
-}
-
-.hero-copy {
-  max-width: 48rem;
-  margin-top: 18px;
-  color: var(--muted);
-  font-size: 1.05rem;
-  line-height: 1.7;
-}
-
-.hero-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-  margin-top: 28px;
-}
-
-.hero-metrics article {
-  padding: 20px;
-  border-radius: 22px;
-  background: var(--surface-soft);
-}
-
-.hero-metrics span {
-  display: block;
-  font-family: 'Lexend', sans-serif;
-  font-size: clamp(2rem, 5vw, 3.8rem);
-  font-weight: 900;
-  letter-spacing: -0.08em;
-}
-
-.hero-metrics p,
 .microcopy,
 .facility-area,
 .sports-list,
@@ -347,6 +295,11 @@ h4 {
 
 .panel {
   padding: 28px;
+}
+
+.admin-header-panel h2 {
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  letter-spacing: -0.05em;
 }
 
 .admin-dashboard-grid {
@@ -599,14 +552,14 @@ textarea:focus {
   font-weight: 700;
 }
 
-.auth-panel {
-  max-width: 40rem;
-}
-
 .auth-form {
   display: grid;
   gap: 14px;
   margin-top: 22px;
+}
+
+.auth-panel {
+  max-width: 40rem;
 }
 
 .demo-credentials {
@@ -652,10 +605,6 @@ textarea:focus {
 button:disabled {
   opacity: 0.72;
   cursor: wait;
-}
-
-.admin-hero h2 {
-  max-width: 13ch;
 }
 
 .full-span {
@@ -731,7 +680,7 @@ button:disabled {
   }
 
   .topbar,
-  .admin-hero-top,
+  .admin-header-row,
   .section-heading,
   .facility-card-top,
   .admin-card-heading {
@@ -739,7 +688,6 @@ button:disabled {
     align-items: stretch;
   }
 
-  .hero-metrics,
   .admin-dashboard-grid,
   .filter-grid,
   .add-facility-form,
@@ -748,13 +696,8 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
-  .hero-card,
   .panel {
     border-radius: 24px;
-  }
-
-  .hero-card h2 {
-    max-width: none;
   }
 
   .facility-meta {
