@@ -182,6 +182,38 @@ function App() {
     }
   }, [liveSports])
 
+  const globalStatus = useMemo(() => {
+    if (summary.total === 0) {
+      return {
+        label: 'No live sports',
+        tone: 'status-delayed',
+        message: 'No active sport offerings are currently listed on the board.',
+      }
+    }
+
+    if (summary.cancelled === summary.total) {
+      return {
+        label: 'Cancelled',
+        tone: 'status-closed',
+        message: 'All listed intramural sports are currently cancelled.',
+      }
+    }
+
+    if (summary.alert > 0 || summary.cancelled > 0) {
+      return {
+        label: 'Alert',
+        tone: 'status-delayed',
+        message: 'At least one sport needs attention. Check individual sport cards for details.',
+      }
+    }
+
+    return {
+      label: 'Active',
+      tone: 'status-open',
+      message: 'Intramural sports are operating normally right now.',
+    }
+  }, [summary])
+
   const recentUpdate = useMemo(
     () => liveSports[0]?.updatedAt ?? 'No updates yet',
     [liveSports],
@@ -463,9 +495,15 @@ function App() {
                 </select>
               </label>
 
-              <div className="setup-box">
-                <p>How to read this board</p>
-                <p>Check the status first, then review notes and facility impact.</p>
+              <div className="global-status-card">
+                <p className="filter-label">Overall IM status</p>
+                <div className="global-status-head">
+                  <span className={`status-dot ${globalStatus.tone}`} aria-hidden="true" />
+                  <span className={`status-pill ${globalStatus.tone}`}>
+                    {globalStatus.label}
+                  </span>
+                </div>
+                <p className="facility-note">{globalStatus.message}</p>
               </div>
             </div>
           </section>
